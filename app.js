@@ -1,5 +1,11 @@
 const DRAFT_KEY = "carRepairDraft";
 const CLOUD_CONFIG_KEY = "carFirebaseConfig";
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCqvZD4B-n9aLNq4Ju9pH_r0rePH9yYaPU",
+  authDomain: "auto-8c4a9.firebaseapp.com",
+  projectId: "auto-8c4a9",
+  appId: "1:350962808870:web:1ef02bf4513e5bf209cee7",
+};
 
 const cloudForm = document.getElementById("cloud-form");
 const firebaseApiKeyInput = document.getElementById("firebase-api-key");
@@ -505,11 +511,7 @@ restoreDraft();
 setFormsEnabled(false);
 
 const boot = async () => {
-  const config = readCloudConfig();
-  if (!config) {
-    cloudStatus.textContent = "Bitte Firebase-Felder eingeben und verbinden.";
-    return;
-  }
+  const config = readCloudConfig() || DEFAULT_FIREBASE_CONFIG;
 
   firebaseApiKeyInput.value = config.apiKey;
   firebaseAuthDomainInput.value = config.authDomain;
@@ -518,10 +520,11 @@ const boot = async () => {
 
   try {
     await connectCloud(config);
+    saveCloudConfig(config);
   } catch (error) {
     console.error(error);
     setFormsEnabled(false);
-    cloudStatus.textContent = "Automatische Firebase-Verbindung fehlgeschlagen. Bitte erneut verbinden.";
+    cloudStatus.textContent = "Automatische Firebase-Verbindung fehlgeschlagen. Bitte Firebase-Verbindung pruefen.";
   }
 };
 
