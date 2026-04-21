@@ -526,10 +526,9 @@ const exportRepairsToPdf = () => {
   doc.setTextColor(17, 24, 39);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text(`Fahrzeug: ${vehicleCache.car}`, 15, 38);
-  doc.text(`Baujahr: ${formatBuildDate(vehicleCache.build_date)}`, 85, 38);
-  doc.text(`Eintraege: ${totalRepairs}`, 128, 38);
-  doc.text(`Max. km: ${highestMileage.toLocaleString("de-DE")}`, 165, 38);
+  doc.text(`Fahrzeug: ${vehicleCache.car}, Baujahr ${formatBuildDate(vehicleCache.build_date)}`, 15, 38);
+  doc.text(`Einträge: ${totalRepairs}`, 15, 45);
+  doc.text(`Max. km: ${highestMileage.toLocaleString("de-DE")}`, 55, 45);
 
   const bodyRows = repairsCache.map((repair, index) => [
     String(index + 1),
@@ -539,7 +538,7 @@ const exportRepairsToPdf = () => {
   ]);
 
   doc.autoTable({
-    startY: 44,
+    startY: 51,
     head: [["#", "Datum", "Kilometerstand", "Kommentar"]],
     body: bodyRows,
     theme: "grid",
