@@ -128,6 +128,8 @@ button:hover {
 .actions {
   display: flex;
   justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
   margin-bottom: 0.8rem;
 }
 
@@ -170,6 +172,31 @@ th {
 
 .muted-text {
   color: var(--muted);
+}
+
+.attachments {
+  margin-top: 0.45rem;
+}
+
+.attachment-title {
+  display: inline-block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+
+.attachment-list {
+  margin: 0.2rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.attachment-list li + li {
+  margin-top: 0.2rem;
+}
+
+.compact-info {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
 }
 
 .delete-btn {
@@ -240,6 +267,7 @@ th {
 
   .actions {
     justify-content: stretch;
+    flex-direction: column;
   }
 
   .actions .secondary-btn {

@@ -24,6 +24,8 @@ const repairForm = document.getElementById("repair-form");
 const dateInput = document.getElementById("date");
 const mileageInput = document.getElementById("mileage");
 const commentInput = document.getElementById("comment");
+const receiptsInput = document.getElementById("receipts");
+const receiptsInfo = document.getElementById("receipts-info");
 const errorOutput = document.getElementById("error");
 const saveButton = document.getElementById("save-button");
 const cancelEditButton = document.getElementById("cancel-edit");
@@ -31,9 +33,12 @@ const cancelEditButton = document.getElementById("cancel-edit");
 const repairsBody = document.getElementById("repairs-body");
 const emptyState = document.getElementById("empty-state");
 const downloadPdfButton = document.getElementById("download-pdf");
+const downloadCsvButton = document.getElementById("download-csv");
 
 let editingId = null;
+let editingAttachments = [];
 let firestoreDb = null;
+let firebaseStorage = null;
 let repairsCache = [];
 let vehicleCache = null;
 
@@ -119,10 +124,50 @@ const getCommentListHtml = (comment) => {
   return `<ul class="comment-list">${listItems}</ul>`;
 };
 
-const getPdfCommentText = (comment) => {
-  const items = getCommentItems(comment);
-  if (items.length === 0) return "-";
-  return items.map((item) => `• ${item}`).join("\n");
+const normalizeAttachments = (attachments) => {
+  if (!Array.isArray(attachments)) return [];
+  return attachments
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      name: typeof item.name === "string" ? item.name : "Beleg",
+      url: typeof item.url === "string" ? item.url : "",
+      path: typeof item.path === "string" ? item.path : "",
+      type: typeof item.type === "string" ? item.type : "",
+      size: Number(item.size) || 0,
+    }))
+    .filter((item) => item.url);
+};
+
+const getAttachmentsHtml = (attachments) => {
+  const normalized = normalizeAttachments(attachments);
+  if (normalized.length === 0) return "";
+
+  const list = normalized
+    .map(
+      (file) =>
+        `<li><a href="${file.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(file.name)}</a></li>`,
+    )
+    .join("");
+
+  return `<div class="attachments"><span class="attachment-title">Belege:</span><ul class="attachment-list">${list}</ul></div>`;
+};
+
+const getPdfCommentText = (comment, attachments) => {
+  const commentItems = getCommentItems(comment);
+  const lines = [];
+
+  if (commentItems.length === 0) {
+    lines.push("-");
+  } else {
+    lines.push(...commentItems.map((item) => `- ${item}`));
+  }
+
+  const normalized = normalizeAttachments(attachments);
+  if (normalized.length > 0) {
+    lines.push(`Belege: ${normalized.map((f) => f.name).join(" | ")}`);
+  }
+
+  return lines.join("\n");
 };
 
 const formatBuildDate = (buildDate) => {
@@ -148,6 +193,28 @@ const setFormsEnabled = (enabled) => {
   });
 
   downloadPdfButton.disabled = !enabled;
+  downloadCsvButton.disabled = !enabled;
+};
+
+const setReceiptsInfo = () => {
+  const selectedFiles = Array.from(receiptsInput.files || []);
+  const existingCount = editingAttachments.length;
+
+  if (editingId) {
+    const selectedLabel =
+      selectedFiles.length > 0
+        ? `${selectedFiles.length} neue Datei(en) ausgewaehlt`
+        : "keine neuen Dateien ausgewaehlt";
+    receiptsInfo.textContent = `Vorhanden: ${existingCount} Datei(en), ${selectedLabel}.`;
+    return;
+  }
+
+  if (selectedFiles.length === 0) {
+    receiptsInfo.textContent = "";
+    return;
+  }
+
+  receiptsInfo.textContent = `${selectedFiles.length} Datei(en) ausgewaehlt.`;
 };
 
 const renderVehicle = () => {
@@ -169,14 +236,19 @@ const setEditMode = (id) => {
 
 const exitEditMode = () => {
   editingId = null;
+  editingAttachments = [];
   saveButton.textContent = "Speichern";
   cancelEditButton.hidden = true;
+  setReceiptsInfo();
 };
 
 const fillFormForEdit = (repair) => {
   dateInput.value = repair.date || "";
   mileageInput.value = repair.mileage || "";
   commentInput.value = repair.comment || "";
+  receiptsInput.value = "";
+  editingAttachments = normalizeAttachments(repair.attachments);
+  setReceiptsInfo();
   saveDraft();
 };
 
@@ -196,11 +268,14 @@ const renderRepairs = () => {
     tr.innerHTML = `
       <td>${formatDate(repair.date)}</td>
       <td>${Number(repair.mileage).toLocaleString("de-DE")} km</td>
-      <td>${getCommentListHtml(repair.comment)}</td>
+      <td>
+        ${getCommentListHtml(repair.comment)}
+        ${getAttachmentsHtml(repair.attachments)}
+      </td>
       <td>
         <div class="row-actions">
           <button class="edit-btn" data-id="${repair.id}" data-action="edit" type="button">Bearbeiten</button>
-          <button class="delete-btn" data-id="${repair.id}" data-action="delete" type="button">Löschen</button>
+          <button class="delete-btn" data-id="${repair.id}" data-action="delete" type="button">Loeschen</button>
         </div>
       </td>
     `;
@@ -242,10 +317,42 @@ const initFirebaseApp = async (config) => {
 const connectCloud = async (config) => {
   await initFirebaseApp(config);
   firestoreDb = firebase.firestore();
+  firebaseStorage = firebase.storage();
 
   await Promise.all([loadVehicle(), loadRepairs()]);
   setFormsEnabled(true);
   cloudStatus.textContent = "Firebase verbunden. Daten werden online gespeichert.";
+};
+
+const sanitizeFileName = (name) => {
+  return String(name || "beleg")
+    .replaceAll(" ", "_")
+    .replace(/[^a-zA-Z0-9._-]/g, "")
+    .slice(-80);
+};
+
+const uploadReceiptFiles = async (files, repairId) => {
+  if (!firebaseStorage || !files || files.length === 0) return [];
+
+  const uploads = files.map(async (file) => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).slice(2, 8);
+    const safeName = sanitizeFileName(file.name);
+    const path = `receipts/${repairId}/${timestamp}-${random}-${safeName}`;
+    const ref = firebaseStorage.ref().child(path);
+    const snapshot = await ref.put(file);
+    const url = await snapshot.ref.getDownloadURL();
+
+    return {
+      name: file.name,
+      url,
+      path,
+      type: file.type || "",
+      size: Number(file.size) || 0,
+    };
+  });
+
+  return Promise.all(uploads);
 };
 
 const exportRepairsToPdf = () => {
@@ -299,7 +406,7 @@ const exportRepairsToPdf = () => {
     String(index + 1),
     formatDate(repair.date),
     `${Number(repair.mileage).toLocaleString("de-DE")} km`,
-    getPdfCommentText(repair.comment),
+    getPdfCommentText(repair.comment, repair.attachments),
   ]);
 
   doc.autoTable({
@@ -340,10 +447,78 @@ const exportRepairsToPdf = () => {
   doc.save(`auto-reparaturen-${filenameDate}.pdf`);
 };
 
+const escapeCsvField = (value) => {
+  const text = String(value ?? "");
+  return `"${text.replaceAll("\"", "\"\"")}"`;
+};
+
+const exportRepairsToCsv = () => {
+  if (repairsCache.length === 0) {
+    errorOutput.textContent = "Keine Eintraege vorhanden, die als CSV exportiert werden koennen.";
+    return;
+  }
+
+  if (!vehicleCache) {
+    errorOutput.textContent = "Bitte zuerst Fahrzeugdaten speichern.";
+    return;
+  }
+
+  errorOutput.textContent = "";
+
+  const createdAt = new Date().toLocaleString("de-DE");
+  const lines = [];
+
+  lines.push([escapeCsvField("Auto-Reparaturprotokoll")].join(";"));
+  lines.push([escapeCsvField("Erstellt am"), escapeCsvField(createdAt)].join(";"));
+  lines.push([escapeCsvField("Fahrzeug"), escapeCsvField(vehicleCache.car)].join(";"));
+  lines.push([escapeCsvField("Baujahr"), escapeCsvField(formatBuildDate(vehicleCache.build_date))].join(";"));
+  lines.push("");
+  lines.push(
+    [
+      escapeCsvField("Nr"),
+      escapeCsvField("Datum"),
+      escapeCsvField("Kilometerstand"),
+      escapeCsvField("Kommentar"),
+      escapeCsvField("Belege"),
+    ].join(";"),
+  );
+
+  repairsCache.forEach((repair, index) => {
+    const comment = getCommentItems(repair.comment).join(" | ");
+    const attachments = normalizeAttachments(repair.attachments)
+      .map((f) => `${f.name}: ${f.url}`)
+      .join(" | ");
+
+    lines.push(
+      [
+        escapeCsvField(index + 1),
+        escapeCsvField(formatDate(repair.date)),
+        escapeCsvField(`${Number(repair.mileage).toLocaleString("de-DE")} km`),
+        escapeCsvField(comment),
+        escapeCsvField(attachments),
+      ].join(";"),
+    );
+  });
+
+  const csvContent = `\uFEFF${lines.join("\r\n")}`;
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const filenameDate = new Date().toISOString().split("T")[0];
+  link.href = url;
+  link.download = `auto-reparaturen-${filenameDate}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
 const clearRepairForm = () => {
   repairForm.reset();
   dateInput.valueAsDate = new Date();
+  receiptsInput.value = "";
   clearDraft();
+  setReceiptsInfo();
 };
 
 cloudForm.addEventListener("submit", async (event) => {
@@ -415,6 +590,7 @@ repairForm.addEventListener("submit", async (event) => {
   const date = dateInput.value;
   const mileage = Number(mileageInput.value);
   const comment = commentInput.value.trim();
+  const files = Array.from(receiptsInput.files || []);
 
   if (!date) {
     errorOutput.textContent = "Bitte ein Datum angeben.";
@@ -433,19 +609,25 @@ repairForm.addEventListener("submit", async (event) => {
 
   try {
     if (editingId) {
+      const newAttachments = await uploadReceiptFiles(files, editingId);
       await firestoreDb.collection("repairs").doc(editingId).update({
         date,
         mileage,
         comment,
+        attachments: [...editingAttachments, ...newAttachments],
         updated_at: firebase.firestore.FieldValue.serverTimestamp(),
       });
     } else {
-      await firestoreDb.collection("repairs").add({
+      const docRef = firestoreDb.collection("repairs").doc();
+      const newAttachments = await uploadReceiptFiles(files, docRef.id);
+
+      await docRef.set({
         date,
         mileage,
         comment,
         car: vehicleCache.car,
         build_date: vehicleCache.build_date,
+        attachments: newAttachments,
         created_at: firebase.firestore.FieldValue.serverTimestamp(),
       });
     }
@@ -502,13 +684,16 @@ cancelEditButton.addEventListener("click", () => {
 });
 
 repairForm.addEventListener("input", saveDraft);
+receiptsInput.addEventListener("change", setReceiptsInfo);
 downloadPdfButton.addEventListener("click", exportRepairsToPdf);
+downloadCsvButton.addEventListener("click", exportRepairsToCsv);
 
 if (!dateInput.value) {
   dateInput.valueAsDate = new Date();
 }
 restoreDraft();
 setFormsEnabled(false);
+setReceiptsInfo();
 
 const boot = async () => {
   const config = readCloudConfig() || DEFAULT_FIREBASE_CONFIG;

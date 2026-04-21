@@ -80,6 +80,12 @@
           <textarea id="comment" name="comment" rows="4" placeholder="Jede Zeile wird als Aufzählungspunkt gespeichert&#10;z. B. Ölwechsel&#10;Luftfilter gewechselt" required></textarea>
         </div>
 
+        <div class="field-group">
+          <label for="receipts">Bilder / Belege (optional)</label>
+          <input id="receipts" name="receipts" type="file" accept="image/*,.pdf" multiple />
+          <p id="receipts-info" class="info-text compact-info"></p>
+        </div>
+
         <div class="form-actions">
           <button id="save-button" type="submit">Speichern</button>
           <button id="cancel-edit" type="button" class="secondary-btn" hidden>Bearbeitung abbrechen</button>
@@ -91,6 +97,7 @@
     <section class="card">
       <h2>Gespeicherte Reparaturen und Umbauten</h2>
       <div class="actions">
+        <button id="download-csv" type="button" class="secondary-btn">Als CSV herunterladen</button>
         <button id="download-pdf" type="button" class="secondary-btn">Als PDF herunterladen</button>
       </div>
       <div class="table-wrap">
@@ -114,6 +121,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
