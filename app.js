@@ -1,5 +1,6 @@
 const DRAFT_KEY = "carRepairDraft";
 const CLOUD_CONFIG_KEY = "carFirebaseConfig";
+const MAX_ATTACHMENTS_PER_ENTRY = 2;
 const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyCqvZD4B-n9aLNq4Ju9pH_r0rePH9yYaPU",
   authDomain: "auto-8c4a9.firebaseapp.com",
@@ -208,16 +209,16 @@ const setReceiptsInfo = () => {
       selectedFiles.length > 0
         ? `${selectedFiles.length} neue Datei(en) ausgewaehlt`
         : "keine neuen Dateien ausgewaehlt";
-    receiptsInfo.textContent = `Vorhanden: ${existingCount} Datei(en), ${selectedLabel}.`;
+    receiptsInfo.textContent = `Vorhanden: ${existingCount} Datei(en), ${selectedLabel}. Maximal ${MAX_ATTACHMENTS_PER_ENTRY} pro Eintrag.`;
     return;
   }
 
   if (selectedFiles.length === 0) {
-    receiptsInfo.textContent = "";
+    receiptsInfo.textContent = `Maximal ${MAX_ATTACHMENTS_PER_ENTRY} Dateien pro Eintrag.`;
     return;
   }
 
-  receiptsInfo.textContent = `${selectedFiles.length} Datei(en) ausgewaehlt.`;
+  receiptsInfo.textContent = `${selectedFiles.length} Datei(en) ausgewaehlt. Maximal ${MAX_ATTACHMENTS_PER_ENTRY} pro Eintrag.`;
 };
 
 const renderVehicle = () => {
@@ -597,6 +598,11 @@ repairForm.addEventListener("submit", async (event) => {
   const comment = commentInput.value.trim();
   const files = Array.from(receiptsInput.files || []);
 
+  if (!editingId && files.length > MAX_ATTACHMENTS_PER_ENTRY) {
+    errorOutput.textContent = `Bitte maximal ${MAX_ATTACHMENTS_PER_ENTRY} Dateien hochladen.`;
+    return;
+  }
+
   if (!date) {
     errorOutput.textContent = "Bitte ein Datum angeben.";
     return;
@@ -614,6 +620,11 @@ repairForm.addEventListener("submit", async (event) => {
 
   try {
     if (editingId) {
+      if (editingAttachments.length + files.length > MAX_ATTACHMENTS_PER_ENTRY) {
+        errorOutput.textContent = `Maximal ${MAX_ATTACHMENTS_PER_ENTRY} Dateien pro Eintrag erlaubt.`;
+        return;
+      }
+
       const newAttachments = await uploadReceiptFiles(files, editingId);
       await firestoreDb.collection("repairs").doc(editingId).update({
         date,
