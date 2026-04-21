@@ -205,9 +205,66 @@ th {
 }
 
 @media (max-width: 640px) {
+  .container {
+    width: 94%;
+    margin: 1rem auto;
+  }
+
+  .card {
+    padding: 0.85rem;
+    border-radius: 10px;
+  }
+
+  header h1 {
+    font-size: 2rem;
+    line-height: 1.1;
+  }
+
+  header p {
+    font-size: 1rem;
+  }
+
+  .collapsible summary {
+    font-size: 1rem;
+  }
+
+  input,
+  textarea,
+  button {
+    font-size: 16px;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .actions {
+    justify-content: stretch;
+  }
+
+  .actions .secondary-btn {
+    width: 100%;
+  }
+
+  .row-actions {
+    flex-direction: column;
+    gap: 0.35rem;
+    align-items: stretch;
+  }
+
+  .edit-btn,
+  .delete-btn {
+    width: 100%;
+    text-align: center;
+  }
+
   th,
   td {
     padding: 0.55rem;
     font-size: 0.92rem;
+  }
+
+  td {
+    min-width: 110px;
   }
 }
