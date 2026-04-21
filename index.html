@@ -14,6 +14,29 @@
     </header>
 
     <section class="card">
+      <h2>Anmeldung</h2>
+      <form id="auth-form" novalidate>
+        <div class="field-group">
+          <label for="auth-email">E-Mail</label>
+          <input id="auth-email" name="authEmail" type="email" autocomplete="username" required />
+        </div>
+
+        <div class="field-group">
+          <label for="auth-password">Passwort</label>
+          <input id="auth-password" name="authPassword" type="password" autocomplete="current-password" required />
+        </div>
+
+        <div class="form-actions">
+          <button id="login-button" type="submit">Anmelden</button>
+          <button id="forgot-password-button" type="button" class="secondary-btn">Passwort vergessen</button>
+          <button id="logout-button" type="button" class="secondary-btn" hidden>Abmelden</button>
+        </div>
+      </form>
+      <p id="auth-status" class="info-text" aria-live="polite"></p>
+    </section>
+
+    <div id="app-content" hidden>
+    <section class="card">
       <details class="collapsible">
         <summary>Cloud-Verbindung anzeigen</summary>
         <form id="cloud-form" novalidate>
@@ -115,11 +138,13 @@
       </div>
       <p id="empty-state" class="empty-state">Noch keine Einträge vorhanden.</p>
     </section>
+    </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
   <script src="app.js"></script>

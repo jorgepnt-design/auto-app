@@ -9,6 +9,14 @@ const DEFAULT_FIREBASE_CONFIG = {
   storageBucket: "auto-8c4a9.firebasestorage.app",
 };
 
+const authForm = document.getElementById("auth-form");
+const authEmailInput = document.getElementById("auth-email");
+const authPasswordInput = document.getElementById("auth-password");
+const forgotPasswordButton = document.getElementById("forgot-password-button");
+const logoutButton = document.getElementById("logout-button");
+const authStatus = document.getElementById("auth-status");
+const appContent = document.getElementById("app-content");
+
 const cloudForm = document.getElementById("cloud-form");
 const firebaseApiKeyInput = document.getElementById("firebase-api-key");
 const firebaseAuthDomainInput = document.getElementById("firebase-auth-domain");
@@ -39,10 +47,14 @@ const downloadCsvButton = document.getElementById("download-csv");
 
 let editingId = null;
 let editingAttachments = [];
+let firebaseAuth = null;
 let firestoreDb = null;
 let firebaseStorage = null;
 let repairsCache = [];
 let vehicleCache = null;
+let currentUser = null;
+let authUnsubscribe = null;
+let isCloudConnected = false;
 
 const parseJsonOrNull = (raw) => {
   try {
@@ -187,17 +199,34 @@ const getVehicleLabel = (vehicle) => {
   return `${vehicle.car} (Baujahr ${formatBuildDate(vehicle.build_date)})`;
 };
 
-const setFormsEnabled = (enabled) => {
+const getUserBaseCollection = () => {
+  if (!currentUser || !firestoreDb) return null;
+  return firestoreDb.collection("users").doc(currentUser.uid);
+};
+
+const refreshAccess = () => {
+  const canUseApp = isCloudConnected && !!currentUser;
+  appContent.hidden = !canUseApp;
+
   vehicleForm.querySelectorAll("input, button").forEach((el) => {
-    el.disabled = !enabled;
+    el.disabled = !canUseApp;
   });
 
   repairForm.querySelectorAll("input, textarea, button").forEach((el) => {
-    el.disabled = !enabled;
+    el.disabled = !canUseApp;
   });
 
-  downloadPdfButton.disabled = !enabled;
-  downloadCsvButton.disabled = !enabled;
+  downloadPdfButton.disabled = !canUseApp;
+  downloadCsvButton.disabled = !canUseApp;
+};
+
+const clearInMemoryData = () => {
+  repairsCache = [];
+  vehicleCache = null;
+  renderRepairs();
+  renderVehicle();
+  clearRepairForm();
+  exitEditMode();
 };
 
 const setReceiptsInfo = () => {
@@ -289,13 +318,17 @@ const renderRepairs = () => {
 };
 
 const loadRepairs = async () => {
-  const snapshot = await firestoreDb.collection("repairs").orderBy("date", "asc").get();
+  const root = getUserBaseCollection();
+  if (!root) return;
+  const snapshot = await root.collection("repairs").orderBy("date", "asc").get();
   repairsCache = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   renderRepairs();
 };
 
 const loadVehicle = async () => {
-  const doc = await firestoreDb.collection("app_meta").doc("vehicle_profile").get();
+  const root = getUserBaseCollection();
+  if (!root) return;
+  const doc = await root.collection("app_meta").doc("vehicle_profile").get();
   vehicleCache = doc.exists ? doc.data() : null;
   renderVehicle();
 };
@@ -319,14 +352,40 @@ const initFirebaseApp = async (config) => {
   }
 };
 
+const attachAuthListener = () => {
+  if (authUnsubscribe) authUnsubscribe();
+  authUnsubscribe = firebaseAuth.onAuthStateChanged(async (user) => {
+    currentUser = user || null;
+    refreshAccess();
+
+    if (!currentUser) {
+      logoutButton.hidden = true;
+      authStatus.textContent = "Bitte mit E-Mail und Passwort anmelden.";
+      clearInMemoryData();
+      return;
+    }
+
+    logoutButton.hidden = false;
+    authStatus.textContent = `Angemeldet als ${currentUser.email || "Benutzer"}.`;
+
+    try {
+      await Promise.all([loadVehicle(), loadRepairs()]);
+    } catch (error) {
+      console.error(error);
+      authStatus.textContent = "Anmeldung ok, aber Daten konnten nicht geladen werden.";
+    }
+  });
+};
+
 const connectCloud = async (config) => {
   await initFirebaseApp(config);
+  firebaseAuth = firebase.auth();
   firestoreDb = firebase.firestore();
   firebaseStorage = firebase.storage();
-
-  await Promise.all([loadVehicle(), loadRepairs()]);
-  setFormsEnabled(true);
-  cloudStatus.textContent = "Firebase verbunden. Daten werden online gespeichert.";
+  isCloudConnected = true;
+  attachAuthListener();
+  refreshAccess();
+  cloudStatus.textContent = "Firebase verbunden.";
 };
 
 const sanitizeFileName = (name) => {
@@ -337,13 +396,13 @@ const sanitizeFileName = (name) => {
 };
 
 const uploadReceiptFiles = async (files, repairId) => {
-  if (!firebaseStorage || !files || files.length === 0) return [];
+  if (!firebaseStorage || !files || files.length === 0 || !currentUser) return [];
 
   const uploads = files.map(async (file) => {
     const timestamp = Date.now();
     const random = Math.random().toString(36).slice(2, 8);
     const safeName = sanitizeFileName(file.name);
-    const path = `receipts/${repairId}/${timestamp}-${random}-${safeName}`;
+    const path = `users/${currentUser.uid}/receipts/${repairId}/${timestamp}-${random}-${safeName}`;
     const ref = firebaseStorage.ref().child(path);
     const snapshot = await ref.put(file);
     const url = await snapshot.ref.getDownloadURL();
@@ -358,6 +417,22 @@ const uploadReceiptFiles = async (files, repairId) => {
   });
 
   return Promise.all(uploads);
+};
+
+const deleteAttachmentFiles = async (attachments) => {
+  const normalized = normalizeAttachments(attachments);
+  if (normalized.length === 0 || !firebaseStorage) return;
+
+  await Promise.all(
+    normalized.map(async (file) => {
+      if (!file.path) return;
+      try {
+        await firebaseStorage.ref().child(file.path).delete();
+      } catch (error) {
+        console.warn("Attachment delete skipped:", error);
+      }
+    }),
+  );
 };
 
 const exportRepairsToPdf = () => {
@@ -526,6 +601,60 @@ const clearRepairForm = () => {
   setReceiptsInfo();
 };
 
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!firebaseAuth) {
+    authStatus.textContent = "Bitte zuerst Firebase verbinden.";
+    return;
+  }
+
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+  if (!email || !password) {
+    authStatus.textContent = "Bitte E-Mail und Passwort eingeben.";
+    return;
+  }
+
+  try {
+    await firebaseAuth.signInWithEmailAndPassword(email, password);
+    authPasswordInput.value = "";
+  } catch (error) {
+    console.error(error);
+    authStatus.textContent = "Anmeldung fehlgeschlagen. Bitte Daten pruefen.";
+  }
+});
+
+forgotPasswordButton.addEventListener("click", async () => {
+  if (!firebaseAuth) {
+    authStatus.textContent = "Bitte zuerst Firebase verbinden.";
+    return;
+  }
+
+  const email = authEmailInput.value.trim();
+  if (!email) {
+    authStatus.textContent = "Bitte zuerst deine E-Mail eintragen.";
+    return;
+  }
+
+  try {
+    await firebaseAuth.sendPasswordResetEmail(email);
+    authStatus.textContent = "E-Mail zum Zuruecksetzen wurde gesendet.";
+  } catch (error) {
+    console.error(error);
+    authStatus.textContent = "Passwort-Reset konnte nicht gesendet werden.";
+  }
+});
+
+logoutButton.addEventListener("click", async () => {
+  if (!firebaseAuth) return;
+  try {
+    await firebaseAuth.signOut();
+  } catch (error) {
+    console.error(error);
+    authStatus.textContent = "Abmeldung fehlgeschlagen.";
+  }
+});
+
 cloudForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   cloudStatus.textContent = "";
@@ -548,13 +677,19 @@ cloudForm.addEventListener("submit", async (event) => {
     saveCloudConfig(config);
   } catch (error) {
     console.error(error);
-    setFormsEnabled(false);
-    cloudStatus.textContent = "Verbindung fehlgeschlagen. Bitte Firebase-Daten oder Firestore-Regeln pruefen.";
+    isCloudConnected = false;
+    refreshAccess();
+    cloudStatus.textContent = "Verbindung fehlgeschlagen. Bitte Firebase-Daten pruefen.";
   }
 });
 
 vehicleForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const root = getUserBaseCollection();
+  if (!root) {
+    vehicleStatus.textContent = "Bitte anmelden.";
+    return;
+  }
 
   const car = carInput.value.trim();
   const buildDate = buildDateInput.value;
@@ -570,12 +705,11 @@ vehicleForm.addEventListener("submit", async (event) => {
   }
 
   try {
-    await firestoreDb.collection("app_meta").doc("vehicle_profile").set({
+    await root.collection("app_meta").doc("vehicle_profile").set({
       car,
       build_date: buildDate,
       updated_at: firebase.firestore.FieldValue.serverTimestamp(),
     });
-
     await loadVehicle();
     vehicleStatus.textContent = "Fahrzeugdaten gespeichert.";
   } catch (error) {
@@ -587,6 +721,11 @@ vehicleForm.addEventListener("submit", async (event) => {
 repairForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   errorOutput.textContent = "";
+  const root = getUserBaseCollection();
+  if (!root) {
+    errorOutput.textContent = "Bitte anmelden.";
+    return;
+  }
 
   if (!vehicleCache) {
     errorOutput.textContent = "Bitte zuerst Auto und Baujahr/Monat einmal speichern.";
@@ -626,7 +765,7 @@ repairForm.addEventListener("submit", async (event) => {
       }
 
       const newAttachments = await uploadReceiptFiles(files, editingId);
-      await firestoreDb.collection("repairs").doc(editingId).update({
+      await root.collection("repairs").doc(editingId).update({
         date,
         mileage,
         comment,
@@ -634,9 +773,8 @@ repairForm.addEventListener("submit", async (event) => {
         updated_at: firebase.firestore.FieldValue.serverTimestamp(),
       });
     } else {
-      const docRef = firestoreDb.collection("repairs").doc();
+      const docRef = root.collection("repairs").doc();
       const newAttachments = await uploadReceiptFiles(files, docRef.id);
-
       await docRef.set({
         date,
         mileage,
@@ -660,6 +798,8 @@ repairForm.addEventListener("submit", async (event) => {
 repairsBody.addEventListener("click", async (event) => {
   const target = event.target;
   if (!(target instanceof HTMLButtonElement)) return;
+  const root = getUserBaseCollection();
+  if (!root) return;
 
   const id = target.dataset.id;
   const action = target.dataset.action;
@@ -668,7 +808,6 @@ repairsBody.addEventListener("click", async (event) => {
   if (action === "edit") {
     const repair = repairsCache.find((entry) => entry.id === id);
     if (!repair) return;
-
     setEditMode(id);
     fillFormForEdit(repair);
     errorOutput.textContent = "";
@@ -678,7 +817,9 @@ repairsBody.addEventListener("click", async (event) => {
 
   if (action === "delete") {
     try {
-      await firestoreDb.collection("repairs").doc(id).delete();
+      const repair = repairsCache.find((entry) => entry.id === id);
+      await root.collection("repairs").doc(id).delete();
+      if (repair) await deleteAttachmentFiles(repair.attachments);
 
       if (editingId === id) {
         clearRepairForm();
@@ -708,12 +849,11 @@ if (!dateInput.value) {
   dateInput.valueAsDate = new Date();
 }
 restoreDraft();
-setFormsEnabled(false);
+refreshAccess();
 setReceiptsInfo();
 
 const boot = async () => {
   const config = readCloudConfig() || DEFAULT_FIREBASE_CONFIG;
-
   firebaseApiKeyInput.value = config.apiKey;
   firebaseAuthDomainInput.value = config.authDomain;
   firebaseProjectIdInput.value = config.projectId;
@@ -724,7 +864,8 @@ const boot = async () => {
     saveCloudConfig(config);
   } catch (error) {
     console.error(error);
-    setFormsEnabled(false);
+    isCloudConnected = false;
+    refreshAccess();
     cloudStatus.textContent = "Automatische Firebase-Verbindung fehlgeschlagen. Bitte Firebase-Verbindung pruefen.";
   }
 };
