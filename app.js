@@ -5,6 +5,7 @@ const DEFAULT_FIREBASE_CONFIG = {
   authDomain: "auto-8c4a9.firebaseapp.com",
   projectId: "auto-8c4a9",
   appId: "1:350962808870:web:1ef02bf4513e5bf209cee7",
+  storageBucket: "auto-8c4a9.firebasestorage.app",
 };
 
 const cloudForm = document.getElementById("cloud-form");
@@ -61,9 +62,11 @@ const readCloudConfig = () => {
   const authDomain = typeof cfg.authDomain === "string" ? cfg.authDomain.trim() : "";
   const projectId = typeof cfg.projectId === "string" ? cfg.projectId.trim() : "";
   const appId = typeof cfg.appId === "string" ? cfg.appId.trim() : "";
+  const storageBucketRaw = typeof cfg.storageBucket === "string" ? cfg.storageBucket.trim() : "";
+  const storageBucket = storageBucketRaw || `${projectId}.firebasestorage.app`;
 
   if (!apiKey || !authDomain || !projectId || !appId) return null;
-  return { apiKey, authDomain, projectId, appId };
+  return { apiKey, authDomain, projectId, appId, storageBucket };
 };
 
 const saveCloudConfig = (config) => {
@@ -306,7 +309,8 @@ const initFirebaseApp = async (config) => {
   const sameProject =
     current.projectId === config.projectId &&
     current.apiKey === config.apiKey &&
-    current.appId === config.appId;
+    current.appId === config.appId &&
+    current.storageBucket === config.storageBucket;
 
   if (!sameProject) {
     await firebase.app().delete();
@@ -530,6 +534,7 @@ cloudForm.addEventListener("submit", async (event) => {
     authDomain: firebaseAuthDomainInput.value.trim(),
     projectId: firebaseProjectIdInput.value.trim(),
     appId: firebaseAppIdInput.value.trim(),
+    storageBucket: `${firebaseProjectIdInput.value.trim()}.firebasestorage.app`,
   };
 
   if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) {
