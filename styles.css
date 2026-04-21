@@ -258,13 +258,73 @@ th {
     text-align: center;
   }
 
-  th,
+  thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  table,
+  tbody,
+  tr,
   td {
-    padding: 0.55rem;
-    font-size: 0.92rem;
+    display: block;
+    width: 100%;
+  }
+
+  tr {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.6rem;
+    margin-bottom: 0.7rem;
+    background: #ffffff;
   }
 
   td {
-    min-width: 110px;
+    border: none;
+    border-bottom: 1px dashed #e5e7eb;
+    padding: 0.45rem 0;
+    font-size: 0.95rem;
+  }
+
+  td:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  td::before {
+    display: block;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 0.2rem;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  td:nth-child(1)::before {
+    content: "Datum";
+  }
+
+  td:nth-child(2)::before {
+    content: "Kilometerstand";
+  }
+
+  td:nth-child(3)::before {
+    content: "Kommentar";
+  }
+
+  td:nth-child(4)::before {
+    content: "Aktion";
+  }
+
+  .comment-list {
+    margin-top: 0.15rem;
   }
 }
