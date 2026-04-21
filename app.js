@@ -518,7 +518,7 @@ const exportRepairsToPdf = () => {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.text("Auto-Reparaturprotokoll", 15, 14);
+  doc.text("Dokumentation der Umbauten und Reparaturen", 15, 14);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.text(`Erstellt am: ${createdAt}`, 15, 22);
@@ -568,7 +568,7 @@ const exportRepairsToPdf = () => {
       doc.setFontSize(9);
       doc.setTextColor(75, 85, 99);
       doc.text(`Seite ${data.pageNumber} von ${pageCount}`, data.settings.margin.left, 290);
-      doc.text("Auto-Reparaturprotokoll", 195, 290, { align: "right" });
+      doc.text("Dokumentation der Umbauten und Reparaturen", 195, 290, { align: "right" });
     },
   });
 
