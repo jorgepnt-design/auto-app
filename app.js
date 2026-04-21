@@ -333,6 +333,42 @@ const loadVehicle = async () => {
   renderVehicle();
 };
 
+const migrateLegacyDataIfNeeded = async () => {
+  const root = getUserBaseCollection();
+  if (!root || !firestoreDb) return false;
+
+  const [userVehicleDoc, userRepairsSnapshot] = await Promise.all([
+    root.collection("app_meta").doc("vehicle_profile").get(),
+    root.collection("repairs").limit(1).get(),
+  ]);
+
+  if (userVehicleDoc.exists || !userRepairsSnapshot.empty) {
+    return false;
+  }
+
+  const [legacyVehicleDoc, legacyRepairsSnapshot] = await Promise.all([
+    firestoreDb.collection("app_meta").doc("vehicle_profile").get(),
+    firestoreDb.collection("repairs").get(),
+  ]);
+
+  if (!legacyVehicleDoc.exists && legacyRepairsSnapshot.empty) {
+    return false;
+  }
+
+  const batch = firestoreDb.batch();
+
+  if (legacyVehicleDoc.exists) {
+    batch.set(root.collection("app_meta").doc("vehicle_profile"), legacyVehicleDoc.data());
+  }
+
+  legacyRepairsSnapshot.forEach((docSnap) => {
+    batch.set(root.collection("repairs").doc(docSnap.id), docSnap.data());
+  });
+
+  await batch.commit();
+  return true;
+};
+
 const initFirebaseApp = async (config) => {
   if (firebase.apps.length === 0) {
     firebase.initializeApp(config);
@@ -369,7 +405,11 @@ const attachAuthListener = () => {
     authStatus.textContent = `Angemeldet als ${currentUser.email || "Benutzer"}.`;
 
     try {
+      const migrated = await migrateLegacyDataIfNeeded();
       await Promise.all([loadVehicle(), loadRepairs()]);
+      if (migrated) {
+        authStatus.textContent = "Alte Eintraege wurden in dein Konto uebernommen.";
+      }
     } catch (error) {
       console.error(error);
       authStatus.textContent = "Anmeldung ok, aber Daten konnten nicht geladen werden.";
