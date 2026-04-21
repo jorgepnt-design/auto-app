@@ -168,19 +168,28 @@ const getAttachmentsHtml = (attachments) => {
   return `<div class="attachments"><span class="attachment-title">Belege:</span><ul class="attachment-list">${list}</ul></div>`;
 };
 
-const getPdfCommentText = (comment, attachments) => {
-  const commentItems = getCommentItems(comment);
+const isReceiptText = (item, attachments = []) => {
+  const text = String(item).trim();
+  const normalizedText = text.replace(/^[-*\s]+/, "");
+  if (!text) return false;
+  if (/belege\s*:/i.test(normalizedText)) return true;
+
+  const attachmentNames = normalizeAttachments(attachments).map((file) => file.name.toLowerCase());
+  if (attachmentNames.includes(normalizedText.toLowerCase())) return true;
+
+  return /(?:^|\s)(?:[\w\s().-]+\.(?:pdf|png|jpe?g|webp|heic|gif|bmp|tiff?))(?:\s*\|)?(?:\s|$)/i.test(
+    normalizedText,
+  );
+};
+
+const getPdfCommentText = (comment, attachments = []) => {
+  const commentItems = getCommentItems(comment).filter((item) => !isReceiptText(item, attachments));
   const lines = [];
 
   if (commentItems.length === 0) {
     lines.push("-");
   } else {
     lines.push(...commentItems.map((item) => `- ${item}`));
-  }
-
-  const normalized = normalizeAttachments(attachments);
-  if (normalized.length > 0) {
-    lines.push(`Belege: ${normalized.map((f) => f.name).join(" | ")}`);
   }
 
   return lines.join("\n");
@@ -303,7 +312,6 @@ const renderRepairs = () => {
       <td>${Number(repair.mileage).toLocaleString("de-DE")} km</td>
       <td>
         ${getCommentListHtml(repair.comment)}
-        ${getAttachmentsHtml(repair.attachments)}
       </td>
       <td>
         <div class="row-actions">
