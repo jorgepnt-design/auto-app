@@ -317,7 +317,7 @@ const renderRepairs = () => {
       <td>
         <div class="row-actions">
           <button class="edit-btn" data-id="${repair.id}" data-action="edit" type="button">Bearbeiten</button>
-          <button class="delete-btn" data-id="${repair.id}" data-action="delete" type="button">Loeschen</button>
+          <button class="delete-btn" data-id="${repair.id}" data-action="delete" type="button">Löschen</button>
         </div>
       </td>
     `;
