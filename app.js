@@ -312,6 +312,7 @@ const renderRepairs = () => {
       <td>${Number(repair.mileage).toLocaleString("de-DE")} km</td>
       <td>
         ${getCommentListHtml(repair.comment)}
+        ${getAttachmentsHtml(repair.attachments)}
       </td>
       <td>
         <div class="row-actions">
