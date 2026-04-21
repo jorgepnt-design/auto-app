@@ -352,6 +352,8 @@ th {
   }
 
   .comment-list li {
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 }
