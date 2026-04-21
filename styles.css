@@ -101,6 +101,21 @@ button:hover {
   min-height: 1.2rem;
 }
 
+.collapsible summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.9rem;
+}
+
+.collapsible[open] summary {
+  margin-bottom: 1rem;
+}
+
+.cloud-status {
+  margin-top: 0.8rem;
+}
+
 .table-wrap {
   overflow-x: auto;
 }

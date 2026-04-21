@@ -14,31 +14,33 @@
     </header>
 
     <section class="card">
-      <h2>Cloud-Verbindung</h2>
-      <form id="cloud-form" novalidate>
-        <div class="field-group">
-          <label for="firebase-api-key">Firebase API Key</label>
-          <input id="firebase-api-key" name="firebaseApiKey" type="text" placeholder="AIza..." required />
-        </div>
+      <details class="collapsible">
+        <summary>Cloud-Verbindung anzeigen</summary>
+        <form id="cloud-form" novalidate>
+          <div class="field-group">
+            <label for="firebase-api-key">Firebase API Key</label>
+            <input id="firebase-api-key" name="firebaseApiKey" type="text" placeholder="AIza..." required />
+          </div>
 
-        <div class="field-group">
-          <label for="firebase-auth-domain">Firebase Auth Domain</label>
-          <input id="firebase-auth-domain" name="firebaseAuthDomain" type="text" placeholder="dein-projekt.firebaseapp.com" required />
-        </div>
+          <div class="field-group">
+            <label for="firebase-auth-domain">Firebase Auth Domain</label>
+            <input id="firebase-auth-domain" name="firebaseAuthDomain" type="text" placeholder="dein-projekt.firebaseapp.com" required />
+          </div>
 
-        <div class="field-group">
-          <label for="firebase-project-id">Firebase Project ID</label>
-          <input id="firebase-project-id" name="firebaseProjectId" type="text" placeholder="dein-projekt-id" required />
-        </div>
+          <div class="field-group">
+            <label for="firebase-project-id">Firebase Project ID</label>
+            <input id="firebase-project-id" name="firebaseProjectId" type="text" placeholder="dein-projekt-id" required />
+          </div>
 
-        <div class="field-group">
-          <label for="firebase-app-id">Firebase App ID</label>
-          <input id="firebase-app-id" name="firebaseAppId" type="text" placeholder="1:1234567890:web:abcdef..." required />
-        </div>
+          <div class="field-group">
+            <label for="firebase-app-id">Firebase App ID</label>
+            <input id="firebase-app-id" name="firebaseAppId" type="text" placeholder="1:1234567890:web:abcdef..." required />
+          </div>
 
-        <button id="connect-cloud" type="submit">Firebase verbinden</button>
-      </form>
-      <p id="cloud-status" class="info-text" aria-live="polite"></p>
+          <button id="connect-cloud" type="submit">Firebase verbinden</button>
+        </form>
+      </details>
+      <p id="cloud-status" class="info-text cloud-status" aria-live="polite"></p>
     </section>
 
     <section class="card">
