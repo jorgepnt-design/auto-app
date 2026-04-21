@@ -1,0 +1,117 @@
+﻿<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Auto-Reparaturprotokoll</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Auto-Reparaturprotokoll</h1>
+      <p>Reparaturen mit Datum, Kilometerstand und Kommentar festhalten.</p>
+    </header>
+
+    <section class="card">
+      <h2>Cloud-Verbindung</h2>
+      <form id="cloud-form" novalidate>
+        <div class="field-group">
+          <label for="firebase-api-key">Firebase API Key</label>
+          <input id="firebase-api-key" name="firebaseApiKey" type="text" placeholder="AIza..." required />
+        </div>
+
+        <div class="field-group">
+          <label for="firebase-auth-domain">Firebase Auth Domain</label>
+          <input id="firebase-auth-domain" name="firebaseAuthDomain" type="text" placeholder="dein-projekt.firebaseapp.com" required />
+        </div>
+
+        <div class="field-group">
+          <label for="firebase-project-id">Firebase Project ID</label>
+          <input id="firebase-project-id" name="firebaseProjectId" type="text" placeholder="dein-projekt-id" required />
+        </div>
+
+        <div class="field-group">
+          <label for="firebase-app-id">Firebase App ID</label>
+          <input id="firebase-app-id" name="firebaseAppId" type="text" placeholder="1:1234567890:web:abcdef..." required />
+        </div>
+
+        <button id="connect-cloud" type="submit">Firebase verbinden</button>
+      </form>
+      <p id="cloud-status" class="info-text" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>Fahrzeug</h2>
+      <form id="vehicle-form" novalidate>
+        <div class="field-group">
+          <label for="car">Auto</label>
+          <input id="car" name="car" type="text" placeholder="z. B. VW Golf 7" required />
+        </div>
+
+        <div class="field-group">
+          <label for="build-date">Baujahr und Monat</label>
+          <input id="build-date" name="buildDate" type="month" required />
+        </div>
+
+        <button id="save-vehicle" type="submit">Fahrzeug speichern</button>
+      </form>
+      <p id="vehicle-status" class="info-text" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>Reparatur eintragen</h2>
+      <p id="active-vehicle" class="info-text"></p>
+      <form id="repair-form" novalidate>
+        <div class="field-group">
+          <label for="date">Datum</label>
+          <input id="date" name="date" type="date" required />
+        </div>
+
+        <div class="field-group">
+          <label for="mileage">Kilometerstand</label>
+          <input id="mileage" name="mileage" type="number" min="0" step="1" placeholder="z. B. 125000" required />
+        </div>
+
+        <div class="field-group">
+          <label for="comment">Kommentar</label>
+          <textarea id="comment" name="comment" rows="4" placeholder="Jede Zeile wird als Aufzählungspunkt gespeichert&#10;z. B. Ölwechsel&#10;Luftfilter gewechselt" required></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button id="save-button" type="submit">Speichern</button>
+          <button id="cancel-edit" type="button" class="secondary-btn" hidden>Bearbeitung abbrechen</button>
+        </div>
+      </form>
+      <p id="error" class="error" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>Gespeichterte Reparaturen und Umbauten</h2>
+      <div class="actions">
+        <button id="download-pdf" type="button" class="secondary-btn">Als PDF herunterladen</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Datum</th>
+              <th>Kilometerstand</th>
+              <th>Kommentar</th>
+              <th>Aktion</th>
+            </tr>
+          </thead>
+          <tbody id="repairs-body"></tbody>
+        </table>
+      </div>
+      <p id="empty-state" class="empty-state">Noch keine Einträge vorhanden.</p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
